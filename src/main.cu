@@ -30,13 +30,13 @@ int main() {
             Sphere(room_r, Eigen::Vector3d{0, -(room_r - 10), 0})
     };
     Sphere lightSphere(1.0, Eigen::Vector3d(0, 7, 7));
-    Sphere sphere(1.0, Eigen::Vector3d::Zero());
-    Sphere sphere2(0.60, Eigen::Vector3d{0.5, 0, 2});
+    Sphere sphere(3.0, Eigen::Vector3d{0, -7, -6});
+    Sphere sphere2(2.0, Eigen::Vector3d{-6, -8, 3});
 
     const Camera camera(
-            Eigen::Vector3d{0, 0, 8},
-            Eigen::Vector3d{0, 0, -1}.normalized(),
-            720, 4.0 / 3.0, 3.0, 1.0
+            Eigen::Vector3d{0, -5, 8},
+            sphere.center - Eigen::Vector3d{0, -5, 8},
+            720, 4.0 / 3.0, 60, 1.0
     );
 
     Body world(0.0, Material(M_DIFFUSE, Color::Zero(), 0.0), worldSphere);
@@ -49,8 +49,8 @@ int main() {
             Body(0.0, Material(M_DIFFUSE, Color(1.0, 1.0, 1.0), 0.6), roomSpheres[5])
     };
     Body light(100.0, Material(M_ZERO, Color(1, 1, 1)), lightSphere);
-    Body body(0.0, Material(Color(0.3, 0.92, 0.95), 0.1, 0.7, 0.0), sphere);
-    Body body2(0.0, Material(Color(0.6, 0.7, 0.5), 0.1, 0.7, 0.0), sphere2);
+    Body body(0.0, Material(Color(0.3, 0.92, 0.95), 1.0, 0.0, 0.0), sphere);
+    Body body2(0.0, Material(Color(0.6, 0.7, 0.5), 0.01, 0.7, 0.0), sphere2);
     std::vector<Body> bodies{world, light, body, body2};
     for(auto & i : room) {
         bodies.push_back(i);
@@ -66,12 +66,14 @@ int main() {
     LARGE_INTEGER start, end;
     QueryPerformanceCounter(&start);
 
-    generateImageWithGPU(scene, static_cast<int>(pow(2, 12)));
+    auto image = generateImageWithGPU(scene, static_cast<int>(pow(2, 12)));
 
     QueryPerformanceCounter(&end);
 
     const double time = static_cast<double>(end.QuadPart - start.QuadPart) / freq.QuadPart;
     std::cout << "Generation time\t" << time << " [sec]" << std::endl;
 
+    image.generatePNG("../Results/sampleGPU");
+    image.generateCSV("../Results/sampleGPU");
     return 0;
 }

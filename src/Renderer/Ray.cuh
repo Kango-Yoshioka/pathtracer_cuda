@@ -22,7 +22,7 @@ struct Ray {
 
     __host__ __device__
     Ray(Eigen::Vector3d org, Eigen::Vector3d dir) :
-            org(std::move(org)), dir(std::move(dir)) {}
+            org(std::move(org)), dir(std::move(dir.normalized())) {}
 };
 
 struct RayHit {

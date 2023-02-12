@@ -15,6 +15,8 @@ public:
     /// 解像度 (従来におけるImageの縦横幅)
     Eigen::Vector2i resolution;
 
+    Film() = default;
+
     /**
      * @param imageHeight 画像サイズ（縦）
      * @param filmHeight

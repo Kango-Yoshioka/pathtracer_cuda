@@ -15,9 +15,9 @@ __global__ void curandInitInRenderer(const Scene *scene, curandState* state, uns
             (blockIdx.y * blockDim.y) + threadIdx.y
     );
 
-    if(p.x() >= scene->camera.resolution.x() || p.y() >= scene->camera.resolution.y()) return;
+    if(p.x() >= scene->camera.film.resolution.x() || p.y() >= scene->camera.film.resolution.y()) return;
 
-    const unsigned int pixelIdx = p.x() + (p.y() * scene->camera.resolution.x());
+    const unsigned int pixelIdx = p.x() + (p.y() * scene->camera.film.resolution.x());
     curand_init(seed, pixelIdx, 0, &state[pixelIdx]);
 }
 
@@ -30,7 +30,7 @@ double generateRandom(curandState &state) {
 }
 ////////////////////
 
-__device__ __host__
+__device__ __host__ __forceinline__
 bool hitScene(const Scene *scene, const Ray &ray, RayHit &rayHit) {
 
     rayHit.t = FLT_MAX;
@@ -49,15 +49,15 @@ bool hitScene(const Scene *scene, const Ray &ray, RayHit &rayHit) {
 
 __host__
 void generateImageWithCPU(const Scene &scene) {
-    Image image(scene.camera.resolution.x(), scene.camera.resolution.y());
+    Image image(scene.camera.film.resolution.x(), scene.camera.film.resolution.y());
     auto *pixels = static_cast<Color*>(malloc(image.getWidth() * image.getHeight() * sizeof(Color)));
 
     std::random_device seedGen;
     std::default_random_engine engine(seedGen());
     std::uniform_real_distribution<> dist(0.0, 1.0);
 #pragma omp parallel for
-    for(int y = 0; y < scene.camera.resolution.y(); y++) {
-        for(int x = 0; x < scene.camera.resolution.x(); x++) {
+    for(int y = 0; y < scene.camera.film.resolution.y(); y++) {
+        for(int x = 0; x < scene.camera.film.resolution.x(); x++) {
             const unsigned int pixelIdx = y * image.getWidth() + x;
             Ray initRay;
             Color radiance = Color().setZero();
@@ -133,8 +133,8 @@ void writeToPixels(Color *out_pixels, Scene *scene, unsigned int samplesPerPixel
             (blockIdx.x * blockDim.x) + threadIdx.x,
             (blockIdx.y * blockDim.y) + threadIdx.y
     );
-    if(p.x() >= scene->camera.resolution.x() || p.y() >= scene->camera.resolution.y()) return;
-    const unsigned int pixelIdx = p.x() + (p.y() * scene->camera.resolution.x());
+    if(p.x() >= scene->camera.film.resolution.x() || p.y() >= scene->camera.film.resolution.y()) return;
+    const unsigned int pixelIdx = p.x() + (p.y() * scene->camera.film.resolution.x());
 
     curandState state = states[pixelIdx];
     Ray initRay;
@@ -164,7 +164,7 @@ void sceneInitialize(Scene *d_scene, Body *d_body) {
 }
 
 __host__
-void generateImageWithGPU(const Scene &scene, const unsigned int &samplesPerPixel) {
+Image generateImageWithGPU(const Scene &scene, const unsigned int &samplesPerPixel) {
     Scene* d_scene;
     Body* d_body;
     Color* d_pixels;
@@ -172,11 +172,11 @@ void generateImageWithGPU(const Scene &scene, const unsigned int &samplesPerPixe
 
     /// information of camera ///
     std::cout << "-- Camera --" << std::endl;
-    std::cout << "Resolution\t(" << scene.camera.resolution.x() << ", " << scene.camera.resolution.y() << ")" << std::endl;
+    std::cout << "Resolution\t(" << scene.camera.film.resolution.x() << ", " << scene.camera.film.resolution.y() << ")" << std::endl;
     std::cout << "------------" << std::endl;
 
     /// Scene initialize ///
-    Image h_image(scene.camera.resolution.x(), scene.camera.resolution.y());
+    Image h_image(scene.camera.film.resolution.x(), scene.camera.film.resolution.y());
     std::cout << "Pixel size:\t" << h_image.getWidth() * h_image.getHeight() << std::endl;
 
     checkCudaErrors(cudaMalloc((void**)&d_scene, sizeof(Scene)));
@@ -216,9 +216,7 @@ void generateImageWithGPU(const Scene &scene, const unsigned int &samplesPerPixe
     checkCudaErrors(cudaFree(d_body));
     checkCudaErrors(cudaFree(d_pixels));
 
-    const std::string fname = "sampleGPU";
-    h_image.generatePNG(fname);
-    h_image.generateCSV(fname);
+    return h_image;
 }
 
 __host__ __device__ __forceinline__
@@ -303,6 +301,14 @@ void pathTraceGPU(const Color &in_radiance, Color &out_radiance, const Scene *sc
     if(xi < hitBodyMaterial.getKd() + hitBodyMaterial.getKs()) {
         /// specular
         specularSample(rayHit.normal, in_ray, out_ray, incidentPoint);
+        out_radiance = in_radiance.cwiseProduct(hitBodyMaterial.getColor());
+        flag = PATH_TRACE_CONTINUE;
+        return;
+    }
+
+    if(xi < hitBodyMaterial.getKd() + hitBodyMaterial.getKs() + hitBodyMaterial.getKt()) {
+        /// specular
+        refractSample(rayHit.normal, in_ray, out_ray, incidentPoint);
         out_radiance = in_radiance.cwiseProduct(hitBodyMaterial.getColor());
         flag = PATH_TRACE_CONTINUE;
         return;
