@@ -28,8 +28,8 @@ public:
 
      [[nodiscard]]
      __host__ __device__
-     Eigen::Vector2d pixelLocalPosition(const unsigned int &x, const unsigned int &y) const {
-         return Eigen::Vector2d{(x + 0.5) / resolution.x(), (y + 0.5) / resolution.y()};
+     Eigen::Vector2d pixelLocalPosition(const unsigned int &x, const unsigned int &y, const Eigen::Vector2d &rand) const {
+         return Eigen::Vector2d{(x + rand.x()) / resolution.x(), (y + rand.y()) / resolution.y()};
      }
 };
 

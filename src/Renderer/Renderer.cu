@@ -32,7 +32,6 @@ double generateRandom(curandState &state) {
 
 __device__ __host__ __forceinline__
 bool hitScene(const Scene *scene, const Ray &ray, RayHit &rayHit) {
-
     rayHit.t = FLT_MAX;
     rayHit.idx = -1;
     for (int i = 0; i < scene->bodiesSize; i++) {
@@ -52,8 +51,8 @@ void generateImageWithCPU(const Scene &scene) {
     Image image(scene.camera.film.resolution.x(), scene.camera.film.resolution.y());
     auto *pixels = static_cast<Color*>(malloc(image.getWidth() * image.getHeight() * sizeof(Color)));
 
-    std::random_device seedGen;
-    std::default_random_engine engine(seedGen());
+    // std::random_device seedGen;
+    std::default_random_engine engine(0);
     std::uniform_real_distribution<> dist(0.0, 1.0);
 #pragma omp parallel for
     for(int y = 0; y < scene.camera.film.resolution.y(); y++) {
@@ -61,7 +60,8 @@ void generateImageWithCPU(const Scene &scene) {
             const unsigned int pixelIdx = y * image.getWidth() + x;
             Ray initRay;
             Color radiance = Color().setZero();
-            scene.camera.filmView(x, y, initRay);
+            const Eigen::Vector2d rand{dist(engine), dist(engine)};
+            scene.camera.filmView(x, y, initRay, rand);
             const int samplesPerPixel = 10000;
             for(int i = 0; i < samplesPerPixel; i++) {
                 Ray in_ray = initRay; PATH_TRACE_FLAG flag; Color in_radiance;
@@ -140,7 +140,8 @@ void writeToPixels(Color *out_pixels, Scene *scene, unsigned int samplesPerPixel
     Ray initRay;
     Color radiance = Color(0.0, 0.0, 0.0);
 
-    scene->camera.filmView(p.x(), p.y(), initRay);
+    const Eigen::Vector2d rand{generateRandom(state), generateRandom(state)};
+    scene->camera.filmView(p.x(), p.y(), initRay, rand);
     for(int i = 0; i < samplesPerPixel; i++) {
         Ray in_ray = initRay;
         Color in_radiance;

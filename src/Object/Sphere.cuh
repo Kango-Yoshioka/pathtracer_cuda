@@ -16,13 +16,13 @@ public:
     __device__ __host__
     Sphere(const double &radius, Eigen::Vector3d center);
 
-    __device__ __host__ __forceinline__
+    __device__ __host__
     SIDE getHitSide(const Eigen::Vector3d &p, const Ray &ray) const;
 
-    __device__ __host__ __forceinline__
+    __device__ __host__
     Eigen::Vector3d getNormal(const SIDE &side, const Eigen::Vector3d &p) const;
 
-    __device__ __host__ __forceinline__
+    __device__ __host__
     bool hit(const Ray &ray, RayHit &rayHit) const;
 };
 

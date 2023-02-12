@@ -19,6 +19,8 @@ int main() {
 
     cudaDeviceSynchronize();
 
+    const Color offWhite(1.0, 0.97, 0.93);
+
     Sphere worldSphere(1e10, Eigen::Vector3d(0, 0, 0));
     const double room_r = 1e5;
     Sphere roomSpheres[6] = {
@@ -31,27 +33,29 @@ int main() {
     };
     Sphere lightSphere(1.0, Eigen::Vector3d(0, 7, 7));
     Sphere sphere(3.0, Eigen::Vector3d{0, -7, -6});
-    Sphere sphere2(2.0, Eigen::Vector3d{-6, -8, 3});
+    Sphere sphere2(2.0, Eigen::Vector3d{-6, -8, -4});
+    Sphere sphere3(1.0, Eigen::Vector3d{4, -9, -5});
 
     const Camera camera(
             Eigen::Vector3d{0, -5, 8},
             sphere.center - Eigen::Vector3d{0, -5, 8},
-            720, 4.0 / 3.0, 60, 1.0
+            360, 4.0 / 3.0, 60, 1.0
     );
 
     Body world(0.0, Material(M_DIFFUSE, Color::Zero(), 0.0), worldSphere);
     Body room[6] = {
             Body(0.0, Material(M_DIFFUSE, Color(1.0, 0.01, 0.01), 0.5), roomSpheres[0]),
             Body(0.0, Material(M_DIFFUSE, Color(0.01, 1.0, 0.01), 0.5), roomSpheres[1]),
-            Body(0.0, Material(M_DIFFUSE, Color(1.0, 1.0, 1.0), 0.6), roomSpheres[2]),
-            Body(0.0, Material(M_DIFFUSE, Color(1.0, 1.0, 1.0), 0.8), roomSpheres[3]),
-            Body(0.0, Material(M_DIFFUSE, Color(1.0, 1.0, 1.0), 0.6), roomSpheres[4]),
-            Body(0.0, Material(M_DIFFUSE, Color(1.0, 1.0, 1.0), 0.6), roomSpheres[5])
+            Body(0.0, Material(M_DIFFUSE, offWhite, 0.6), roomSpheres[2]),
+            Body(0.0, Material(M_DIFFUSE, offWhite, 0.6), roomSpheres[3]),
+            Body(0.0, Material(M_DIFFUSE, offWhite, 0.6), roomSpheres[4]),
+            Body(0.0, Material(M_DIFFUSE, offWhite, 0.6), roomSpheres[5])
     };
     Body light(100.0, Material(M_ZERO, Color(1, 1, 1)), lightSphere);
     Body body(0.0, Material(Color(0.3, 0.92, 0.95), 1.0, 0.0, 0.0), sphere);
     Body body2(0.0, Material(Color(0.6, 0.7, 0.5), 0.01, 0.7, 0.0), sphere2);
-    std::vector<Body> bodies{world, light, body, body2};
+    Body body3(0.0, Material(Color(1.0, 1.0, 1.0), 0.01, 0.7, 0.001), sphere3);
+    std::vector<Body> bodies{world, light, body, body2, body3};
     for(auto & i : room) {
         bodies.push_back(i);
     }
