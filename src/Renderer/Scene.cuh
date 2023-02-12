@@ -30,7 +30,8 @@ struct Scene {
         printf("dir:\t(%lf, %lf, %lf)\n", camera.dir.x(), camera.dir.y(), camera.dir.z());
         printf("right:\t(%lf, %lf, %lf)\n", camera.right.x(), camera.right.y(), camera.right.z());
         printf("up:\t(%lf, %lf, %lf)\n", camera.up.x(), camera.up.y(), camera.up.z());
-        printf("focalLength:\t%lf\n", camera.focalLength);
+        printf("lensRadius:\t%lf\n", camera.lensRadius);
+        printf("focusDist:\t%lf\n", camera.focusDist);
         printf("## ----- ##\n");
 
         printf("bodiesSize:\t%d\n", bodiesSize);

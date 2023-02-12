@@ -12,11 +12,11 @@
 class Camera : public Ray{
 public:
     /// カメラとフィルムの距離
-    double focalLength;
+    double focusDist, lensRadius;
     Eigen::Vector3d right, up;
     Film film;
 
-    Camera(const Eigen::Vector3d &org, const Eigen::Vector3d &dir, const int &resolutionHeight, double aspectRatio, double verticalFoV, double focalLength);
+    Camera(const Eigen::Vector3d &org, const Eigen::Vector3d &dir, const int &resolutionHeight, double aspectRatio, double verticalFoV, double aperture, double focusDist);
 
     __host__ __device__
     void filmView(const unsigned int &p_x, const unsigned int &p_y, Ray &out_ray, const Eigen::Vector2d &rand) const;
