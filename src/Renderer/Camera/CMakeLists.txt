@@ -11,7 +11,6 @@ add_library(camera STATIC Camera.cu)
 
 target_include_directories(camera PUBLIC ../../../third_party/eigen-3.4.0)
 
-
 set_target_properties(camera
         PROPERTIES
         VERSION ${PROJECT_VERSION})

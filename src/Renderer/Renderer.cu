@@ -60,7 +60,7 @@ void generateImageWithCPU(const Scene &scene) {
             const unsigned int pixelIdx = y * image.getWidth() + x;
             Ray initRay;
             Color radiance = Color().setZero();
-            const Eigen::Vector2d rand{dist(engine), dist(engine)};
+            const Eigen::Vector4d rand{dist(engine), dist(engine), dist(engine), dist(engine)};
             scene.camera.filmView(x, y, initRay, rand);
             const int samplesPerPixel = 10000;
             for(int i = 0; i < samplesPerPixel; i++) {
@@ -140,7 +140,7 @@ void writeToPixels(Color *out_pixels, Scene *scene, unsigned int samplesPerPixel
     Ray initRay;
     Color radiance = Color(0.0, 0.0, 0.0);
 
-    const Eigen::Vector2d rand{generateRandom(state), generateRandom(state)};
+    const Eigen::Vector4d rand{generateRandom(state), generateRandom(state), generateRandom(state), generateRandom(state)};
     scene->camera.filmView(p.x(), p.y(), initRay, rand);
     for(int i = 0; i < samplesPerPixel; i++) {
         Ray in_ray = initRay;

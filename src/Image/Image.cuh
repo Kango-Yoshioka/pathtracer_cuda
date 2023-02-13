@@ -9,6 +9,8 @@
 
 using Color = Eigen::Vector3d;
 
+Color codeToColor(const std::string &colorCode);
+
 enum FILE_EXTENSION {
     BMP, PNG, CSV
 };

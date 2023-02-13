@@ -15,8 +15,11 @@ Camera::Camera(const Eigen::Vector3d &org, const Eigen::Vector3d &dir, const int
 }
 
 __host__ __device__
-void Camera::filmView(const unsigned int &p_x, const unsigned int &p_y, Ray &out_ray, const Eigen::Vector2d &rand) const {
-    const auto pixelLocalPos = film.pixelLocalPosition(p_x, p_y, rand);
-    out_ray.org = org;
-    out_ray.dir = (right * (pixelLocalPos.x() - 0.5) + up * (0.5 - pixelLocalPos.y()) + dir * focusDist).normalized();
+void Camera::filmView(const unsigned int &p_x, const unsigned int &p_y, Ray &out_ray, const Eigen::Vector4d &rand) const {
+    const auto pixelLocalPos = film.pixelLocalPosition(p_x, p_y, Eigen::Vector2d{rand.w(), rand.x()});
+    const double theta = 2 * EIGEN_PI * rand.y();
+    const double r = lensRadius * rand.z();
+    const Eigen::Vector3d offset = r * (right.normalized() * cos(theta) + up.normalized() * sin(theta));
+    out_ray.org = org + offset;
+    out_ray.dir = (right * (pixelLocalPos.x() - 0.5) + up * (0.5 - pixelLocalPos.y()) + dir * focusDist - offset).normalized();
 }

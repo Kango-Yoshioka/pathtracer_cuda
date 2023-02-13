@@ -11,6 +11,16 @@
 #include <iostream>
 #include <vector>
 
+Color codeToColor(const std::string &colorCode) {
+    const auto rgb = (uint32_t) strtol((const char *) &colorCode[1], nullptr, 16);
+
+    const auto red = (rgb >> 16) & 0xFF;
+    const auto green = (rgb >> 8) & 0xFF;
+    const auto blue = (rgb >> 0) & 0xFF;
+
+    return Color{static_cast<float>(red) / 255, static_cast<float>(green) / 255, static_cast<float>(blue) / 255};
+}
+
 Image::Image() = default;
 
 __device__ __host__
