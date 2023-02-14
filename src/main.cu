@@ -36,13 +36,6 @@ int main() {
     Sphere sphere2(2.0, Eigen::Vector3d{-8, -8, -4});
     Sphere sphere3(2.0, Eigen::Vector3d{7, -8, -5});
 
-    const Eigen::Vector3d camOrg{0, -8.0, 9};
-    const Camera camera(
-            camOrg,
-            sphere.center - camOrg,
-            720, 16.0 / 9.0, 40, 0.8, (sphere.center - camOrg).norm(), 1.0
-    );
-
     Body world(0.0, Material(M_DIFFUSE, Color::Zero(), 0.0), worldSphere);
     Body room[6] = {
             Body(0.0, Material(M_DIFFUSE, Color(1.0, 0.01, 0.01), 0.5), roomSpheres[0]),
@@ -56,7 +49,7 @@ int main() {
     Body body(0.0, Material(Color(0.3, 0.92, 0.95), 1.0, 0.0, 0.0), sphere);
     Body body2(0.0, Material(Color(0.6, 0.7, 0.5), 0.01, 0.9, 0.0), sphere2);
     Body body3(0.0, Material(Color(1.0, 1.0, 1.0), 0.01, 0.7, 0.001), sphere3);
-    Body body4(0.0, Material(Color(0.76, 0.67, 1.0), 0.6, 0.3, 0.001), Sphere(1.5, Eigen::Vector3d{2, -8.5, 0}));
+    Body body4(0.0, Material(Color(0.76, 0.67, 1.0), 0.6, 0.3, 0.001), Sphere(1.5, Eigen::Vector3d{3, -8.5, 0}));
     Body body5(0.0, Material(codeToColor("#FFC800"), 0.8, 0.1, 0.001), Sphere(1.5, Eigen::Vector3d{-4, -8.5, -1}));
     Body body6(0.0, Material(codeToColor("#bdd458"), 0.3, 0.7, 0.0), Sphere(2.0, Eigen::Vector3d{-5.0, -8.0, -8.0}));
     Body body7(0.0, Material(codeToColor("#FFFFFF"), 0.8, 0.2, 0.0), Sphere(2.0, Eigen::Vector3d{-0.5, -10.0, 5.0}));
@@ -64,6 +57,13 @@ int main() {
     for(auto & i : room) {
         bodies.push_back(i);
     }
+
+    const Eigen::Vector3d camOrg{0, -8.0, 9};
+    const Camera camera(
+            camOrg,
+            sphere.center - camOrg,
+            720, 16.0 / 9.0, 40, 0.8, (sphere.center - camOrg).norm(), 2.0
+    );
 
     Scene scene(bodies.size(), camera, bodies.data(), Color::Zero());
 
@@ -75,7 +75,7 @@ int main() {
     LARGE_INTEGER start, end;
     QueryPerformanceCounter(&start);
 
-    auto image = generateImageWithGPU(scene, static_cast<int>(pow(2, 12)));
+    auto image = generateImageWithGPU(scene, static_cast<int>(pow(2, 10)));
 
     QueryPerformanceCounter(&end);
 
