@@ -10,9 +10,9 @@
 
 struct Film {
 public:
-    /// 空間上におけるフィルムの高さ
+    /// 空間上におけるフィルムのサイズ
     Eigen::Vector2d filmSize;
-    /// 解像度 (従来におけるImageの縦横幅)
+    /// 解像度
     Eigen::Vector2i resolution;
 
     Film() = default;
