@@ -30,102 +30,20 @@ double generateRandom(curandState &state) {
 }
 ////////////////////
 
-__device__ __host__ __forceinline__
-bool hitScene(const Scene *scene, const Ray &ray, RayHit &rayHit) {
-    rayHit.t = FLT_MAX;
-    rayHit.idx = -1;
+__device__ __forceinline__
+bool hitScene(const Scene *scene, const Ray &ray, RayHit &hit) {
+    hit.t = DBL_MAX;
+    hit.idx = -1;
     for (int i = 0; i < scene->bodiesSize; i++) {
-        RayHit _rayHit;
-        if (scene->bodies[i].hit(ray, _rayHit) && _rayHit.t < rayHit.t) {
-            rayHit.t = _rayHit.t;
-            rayHit.idx = i;
-            rayHit.side = _rayHit.side;
-            rayHit.normal = _rayHit.normal;
+        RayHit _hit;
+        if (scene->bodies[i].hit(ray, _hit) && _hit.t < hit.t) {
+            hit.t = _hit.t;
+            hit.idx = i;
+            hit.side = _hit.side;
+            hit.normal = _hit.normal;
         }
     }
-    return rayHit.idx != -1;
-}
-
-__host__
-void generateImageWithCPU(const Scene &scene) {
-    Image image(scene.camera.film.resolution.x(), scene.camera.film.resolution.y());
-    auto *pixels = static_cast<Color*>(malloc(image.getWidth() * image.getHeight() * sizeof(Color)));
-
-    // std::random_device seedGen;
-    std::default_random_engine engine(0);
-    std::uniform_real_distribution<> dist(0.0, 1.0);
-#pragma omp parallel for
-    for(int y = 0; y < scene.camera.film.resolution.y(); y++) {
-        for(int x = 0; x < scene.camera.film.resolution.x(); x++) {
-            const unsigned int pixelIdx = y * image.getWidth() + x;
-            Ray initRay;
-            Color radiance = Color().setZero();
-            double weight;
-            const Eigen::Vector4d rand{dist(engine), dist(engine), dist(engine), dist(engine)};
-            scene.camera.filmView(x, y, initRay, weight, rand);
-            const int samplesPerPixel = 10000;
-            for(int i = 0; i < samplesPerPixel; i++) {
-                Ray in_ray = initRay; PATH_TRACE_FLAG flag; Color in_radiance;
-                in_radiance.setOnes();
-                do {
-                    Ray out_ray;
-                    Color out_radiance;
-                    pathTraceCPU(in_radiance, out_radiance, &scene, in_ray, out_ray, flag, engine, dist);
-                    in_ray = out_ray;
-                    in_radiance = out_radiance;
-                } while(flag);
-                radiance += weight * in_radiance;
-            }
-            pixels[pixelIdx] = radiance / static_cast<double>(samplesPerPixel);
-        }
-    }
-
-    image.pixels = pixels;
-    image.generatePNG("sampleCPU");
-    image.generateCSV("sampleCPU");
-    free(pixels);
-}
-
-__host__ void pathTraceCPU(const Color &in_radiance, Color &out_radiance, const Scene *scene, const Ray &in_ray, Ray &out_ray, PATH_TRACE_FLAG &flag, std::default_random_engine &engine, std::uniform_real_distribution<> &dist) {
-    RayHit rayHit;
-    const bool isHit = hitScene(scene, in_ray, rayHit);
-
-    if(!isHit) {
-        out_ray.org = Eigen::Vector3d{1, 2, 3};
-        out_ray.dir = Eigen::Vector3d{1, 2, 3};
-        out_radiance = in_radiance.cwiseProduct(Color(0.0, 0.0, 0.0));
-        flag = PATH_TRACE_TERMINATE;
-        return;
-    }
-
-    const Body hitBody = scene->bodies[rayHit.idx];
-    const Material& hitBodyMaterial = hitBody.getMaterial();
-    const Eigen::Vector3d incidentPoint = in_ray.org + rayHit.t * in_ray.dir;
-
-    if(hitBody.getEmission() > 0.0) {
-        /// in_ray hit a light source
-        out_ray.org = incidentPoint;
-        out_ray.dir = Eigen::Vector3d{3, 2, 1};
-        out_radiance = in_radiance.cwiseProduct(hitBody.getEmission() * hitBody.getMaterial().getColor());
-        flag = PATH_TRACE_TERMINATE;
-        return;
-    }
-
-    const double xi = dist(engine);
-
-    if(xi < hitBodyMaterial.getKd()) {
-        /// diffuse
-        double2 rands = make_double2(dist(engine), dist(engine));
-        diffuseSample(rayHit.normal, out_ray, incidentPoint, rands);
-        out_radiance = in_radiance.cwiseProduct(hitBodyMaterial.getColor());
-        flag = PATH_TRACE_CONTINUE;
-        return;
-    }
-
-    out_ray.org = incidentPoint;
-    out_ray.dir = Eigen::Vector3d{1, 2, 3};
-    out_radiance = in_radiance.cwiseProduct(Color(0.0, 0.0, 0.0));
-    flag = PATH_TRACE_TERMINATE;
+    return hit.idx != -1;
 }
 
 __global__
@@ -138,24 +56,21 @@ void writeToPixels(Color *out_pixels, Scene *scene, unsigned int samplesPerPixel
     const unsigned int pixelIdx = p.x() + (p.y() * scene->camera.film.resolution.x());
 
     curandState state = states[pixelIdx];
-    Color radiance = Color(0.0, 0.0, 0.0);
+    Color accumulate_radiance = Color::Zero();
 
     for(int i = 0; i < samplesPerPixel; i++) {
-        const Eigen::Vector4d rand{generateRandom(state), generateRandom(state), generateRandom(state), generateRandom(state)};
-        Ray in_ray; double weight;
-        Color in_radiance = Color(1, 1, 1);
+        const double4 rand = make_double4(generateRandom(state), generateRandom(state), generateRandom(state), generateRandom(state));
+        Ray ray; double weight;
+        Color radiance = Color::Ones();
         PATH_TRACE_FLAG pathTraceFlag;
-        scene->camera.filmView(p.x(), p.y(), in_ray, weight, rand);
+        scene->camera.filmView(p.x(), p.y(), ray, weight, rand);
         do {
-            Ray out_ray; Color out_radiance;
-            pathTraceGPU(in_radiance, out_radiance, scene, in_ray, out_ray, state, pathTraceFlag);
-            in_ray = out_ray;
-            in_radiance = out_radiance;
+            pathTraceGPU(radiance, scene, ray, state, pathTraceFlag);
         } while (pathTraceFlag);
-        radiance += weight * in_radiance;
+        accumulate_radiance += weight * radiance;
     }
 
-     out_pixels[pixelIdx] = radiance / static_cast<double>(samplesPerPixel);
+     out_pixels[pixelIdx] = accumulate_radiance / static_cast<double>(samplesPerPixel);
 }
 
 __global__
@@ -202,13 +117,11 @@ Image generateImageWithGPU(const Scene &scene, const unsigned int &samplesPerPix
 
     /// cuRand initialize ///
     checkCudaErrors(cudaMalloc((void**)&d_state, sizeof(curandState) * h_image.getWidth() * h_image.getHeight()));
-    curandInitInRenderer<<<blocksPerGrid, threadsPerBlock>>>(d_scene, d_state, static_cast<unsigned long>(time(nullptr)));
-
-    cudaDeviceSynchronize();
+    // seed value is const
+    const int seed = 0;
+    curandInitInRenderer<<<blocksPerGrid, threadsPerBlock>>>(d_scene, d_state, seed);
 
     writeToPixels<<<blocksPerGrid, threadsPerBlock>>>(d_pixels, d_scene, samplesPerPixel, d_state);
-
-    cudaDeviceSynchronize();
 
     checkCudaErrors(cudaMemcpy(h_image.pixels, d_pixels, sizeof(Color) * h_image.getWidth() * h_image.getHeight(), cudaMemcpyDeviceToHost));
 
@@ -219,9 +132,9 @@ Image generateImageWithGPU(const Scene &scene, const unsigned int &samplesPerPix
     return h_image;
 }
 
-__host__ __device__ __forceinline__
+__device__ __forceinline__
 void computeLocalFrame(const Eigen::Vector3d &w, Eigen::Vector3d &u, Eigen::Vector3d &v) {
-    if(fabs(w.x()) > 1e-6)
+    if(fabs(w.x()) > 1e-3)
         u = Eigen::Vector3d(0, 1, 0).cross(w).normalized();
     else
         u = Eigen::Vector3d(1, 0, 0).cross(w).normalized();
@@ -229,8 +142,8 @@ void computeLocalFrame(const Eigen::Vector3d &w, Eigen::Vector3d &u, Eigen::Vect
     v = w.cross(u);
 }
 
-__host__ __device__ __forceinline__
-void diffuseSample(const Eigen::Vector3d &normal, Ray &out_ray, const Eigen::Vector3d &incidentPoint, const double2 &rands) {
+__device__ __forceinline__
+void diffuseSample(const Eigen::Vector3d &normal, Ray &ray, const Eigen::Vector3d &incidentPoint, const double2 &rands) {
     const double phi = 2.0 * EIGEN_PI * rands.x;
     const double theta = acos(sqrt(rands.y));
 
@@ -242,47 +155,46 @@ void diffuseSample(const Eigen::Vector3d &normal, Ray &out_ray, const Eigen::Vec
     const double _y = cos(theta);
     const double _z = sin(theta) * sin(phi);
 
-    out_ray.dir = (_x * u + _y * normal + _z * v).normalized();
-    out_ray.org = incidentPoint;
+    ray.dir = (_x * u + _y * normal + _z * v).normalized();
+    ray.org = incidentPoint;
 }
 
 __device__ __forceinline__
-void specularSample(const Eigen::Vector3d &normal, const Ray &in_ray, Ray &out_ray, const Eigen::Vector3d &incidentPoint) {
-    out_ray.org = incidentPoint;
-    out_ray.dir = (in_ray.dir - 2.0 * normal.dot(in_ray.dir) * normal).normalized();
+void specularSample(const Eigen::Vector3d &normal, Ray &ray, const Eigen::Vector3d &incidentPoint) {
+    ray.org = incidentPoint;
+    ray.dir = (ray.dir - 2.0 * normal.dot(ray.dir) * normal).normalized();
 }
 
 __device__ __forceinline__
-void refractSample(const Eigen::Vector3d &normal, const Ray &in_ray, Ray &out_ray, const Eigen::Vector3d &incidentPoint) {
+void refractSample(const Eigen::Vector3d &normal, Ray &ray, const Eigen::Vector3d &incidentPoint) {
     const double refidx1 = 1.0;
     const double refidx2 = 1.0;
     const double refidx = refidx1 / refidx2;
-    const double dt = (-in_ray.dir).dot(normal);
+    const double dt = (-ray.dir).dot(normal);
     const double discriminant = 1.0 - refidx * refidx * (1.0 - dt * dt);
 
-    out_ray.org = incidentPoint;
-    if (discriminant > 0) out_ray.dir = refidx * (in_ray.dir + normal * dt) - normal * sqrt(discriminant);
-    else out_ray.dir = Eigen::Vector3d::Zero();
+    ray.org = incidentPoint;
+    if (discriminant > 0) ray.dir = refidx * (ray.dir + normal * dt) - normal * sqrt(discriminant);
+    else ray.dir = Eigen::Vector3d::Zero();
 }
 
 __device__ __forceinline__
-void pathTraceGPU(const Color &in_radiance, Color &out_radiance, const Scene *scene, const Ray &in_ray, Ray &out_ray, curandState &state, PATH_TRACE_FLAG &flag) {
-    RayHit rayHit;
-    const auto isHit = hitScene(scene, in_ray, rayHit);
+void pathTraceGPU(Color &radiance, const Scene *scene, Ray &ray, curandState &state, PATH_TRACE_FLAG &flag) {
+    RayHit hit;
 
-    if(!isHit) {
-        out_radiance .setZero();
+    if(!hitScene(scene, ray, hit)) {
+        radiance = scene->backgroundColor;
         flag = PATH_TRACE_TERMINATE;
         return;
     }
 
-    const Body hitBody = scene->bodies[rayHit.idx];
+    const Body hitBody = scene->bodies[hit.idx];
     const Material& hitBodyMaterial = hitBody.getMaterial();
-    const Eigen::Vector3d incidentPoint = in_ray.org + rayHit.t * in_ray.dir;
+    const Eigen::Vector3d incidentPoint = ray.org + hit.t * ray.dir;
 
     if(hitBody.getEmission() > 0.0) {
         /// ray hit a light source
-        out_radiance = hitBody.getEmission() * in_radiance.cwiseProduct(hitBody.getMaterial().getColor());
+        radiance = hitBody.getEmission() * radiance.cwiseProduct(hitBody.getMaterial().getColor());
         flag = PATH_TRACE_TERMINATE;
         return;
     }
@@ -292,72 +204,28 @@ void pathTraceGPU(const Color &in_radiance, Color &out_radiance, const Scene *sc
     if(xi < hitBodyMaterial.getKd()) {
         /// diffuse
         double2 rands = make_double2(generateRandom(state), generateRandom(state));
-        diffuseSample(rayHit.normal, out_ray, incidentPoint, rands);
-        out_radiance = in_radiance.cwiseProduct(hitBodyMaterial.getColor());
+        diffuseSample(hit.normal, ray, incidentPoint, rands);
+        radiance = radiance.cwiseProduct(hitBodyMaterial.getColor());
         flag = PATH_TRACE_CONTINUE;
         return;
     }
 
     if(xi < hitBodyMaterial.getKd() + hitBodyMaterial.getKs()) {
         /// specular
-        specularSample(rayHit.normal, in_ray, out_ray, incidentPoint);
-        out_radiance = in_radiance.cwiseProduct(hitBodyMaterial.getColor());
+        specularSample(hit.normal, ray, incidentPoint);
+        radiance = radiance.cwiseProduct(hitBodyMaterial.getColor());
         flag = PATH_TRACE_CONTINUE;
         return;
     }
 
     if(xi < hitBodyMaterial.getKd() + hitBodyMaterial.getKs() + hitBodyMaterial.getKt()) {
         /// specular
-        refractSample(rayHit.normal, in_ray, out_ray, incidentPoint);
-        out_radiance = in_radiance.cwiseProduct(hitBodyMaterial.getColor());
+        refractSample(hit.normal, ray, incidentPoint);
+        radiance = radiance.cwiseProduct(hitBodyMaterial.getColor());
         flag = PATH_TRACE_CONTINUE;
         return;
     }
 
-    out_radiance.setZero();
-    flag = PATH_TRACE_TERMINATE;
-}
-
-__device__ void pathTraceGPU2(const int &pixelIdx, const Color &in_radiance, Color &out_radiance, const Scene *scene, const Ray &in_ray, Ray &out_ray, curandState &state, PATH_TRACE_FLAG &flag) {
-    RayHit rayHit;
-    const auto isHit = hitScene(scene, in_ray, rayHit);
-
-    if(!isHit) {
-        out_radiance .setZero();
-        flag = PATH_TRACE_TERMINATE;
-        return;
-    }
-
-    const Body hitBody = scene->bodies[rayHit.idx];
-    const Material& hitBodyMaterial = hitBody.getMaterial();
-    const Eigen::Vector3d incidentPoint = in_ray.org + rayHit.t * in_ray.dir;
-
-    if(hitBody.getEmission() > 0.0) {
-        /// ray hit a light source
-        out_radiance = hitBody.getEmission() * in_radiance.cwiseProduct(hitBody.getMaterial().getColor());
-        flag = PATH_TRACE_TERMINATE;
-        return;
-    }
-
-    const double xi = generateRandom(state);
-
-    if(xi < hitBodyMaterial.getKd()) {
-        /// diffuse
-        const double2 rands = make_double2(generateRandom(state), generateRandom(state));
-        diffuseSample(rayHit.normal, out_ray, incidentPoint, rands);
-        out_radiance = in_radiance.cwiseProduct(hitBodyMaterial.getColor());
-        flag = PATH_TRACE_CONTINUE;
-        return;
-    }
-
-    if(xi < hitBodyMaterial.getKd() + hitBodyMaterial.getKs()) {
-        /// specular
-        specularSample(rayHit.normal, in_ray, out_ray, incidentPoint);
-        out_radiance = in_radiance.cwiseProduct(hitBodyMaterial.getColor());
-        flag = PATH_TRACE_CONTINUE;
-        return;
-    }
-
-    out_radiance.setZero();
+    radiance.setZero();
     flag = PATH_TRACE_TERMINATE;
 }

@@ -17,8 +17,7 @@ public:
 
     Camera(const Eigen::Vector3d &org, const Eigen::Vector3d &dir, const int &resolutionHeight, double aspectRatio, double verticalFoV, double focalLength, double focusDist, double fNumber, double sensitivity);
 
-    __host__ __device__
-    void filmView(const unsigned int &p_x, const unsigned int &p_y, Ray &out_ray, double &weight, const Eigen::Vector4d &rand) const;
+    __device__ void filmView(const unsigned int &p_x, const unsigned int &p_y, Ray &out_ray, double &weight, const double4 &rand) const;
 };
 
 

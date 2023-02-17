@@ -21,9 +21,9 @@ Camera::Camera(const Eigen::Vector3d &org, const Eigen::Vector3d &dir, const int
     up = right.cross(dir).normalized();
 }
 
-__host__ __device__
-void Camera::filmView(const unsigned int &p_x, const unsigned int &p_y, Ray &out_ray, double &weight, const Eigen::Vector4d &rand) const {
-    const auto pixelLocalPos = film.pixelLocalPosition(p_x, p_y, Eigen::Vector2d{rand.w(), rand.x()});
+__device__
+void Camera::filmView(const unsigned int &p_x, const unsigned int &p_y, Ray &out_ray, double &weight, const double4 &rand) const {
+    const auto pixelLocalPos = film.pixelLocalPosition(p_x, p_y, make_double2(rand.w, rand.x));
 
     // フィルムのピクセルのローカル座標をワールド座標に変換(カメラのorgを含む平面上に置く)
     const Eigen::Vector3d pixelWorldPos = org - film.filmSize.x() * right * (pixelLocalPos.x() - 0.5) - film.filmSize.y() * up * (0.5 - pixelLocalPos.y());
@@ -31,8 +31,8 @@ void Camera::filmView(const unsigned int &p_x, const unsigned int &p_y, Ray &out
     const Eigen::Vector3d pixelToLens = (lensPos - pixelWorldPos).normalized();
 
     // レンズ上の位置サンプリング
-    const double theta = 2 * EIGEN_PI * rand.y();
-    const double r = focalLength / (2.0 * fNumber) * rand.z();
+    const double theta = 2.0 * EIGEN_PI * rand.y;
+    const double r = focalLength / (2.0 * fNumber) * rand.z;
     const Eigen::Vector3d randPosOnLens = lensPos + r * (right * cos(theta) + up * sin(theta));
 
     // 集光点の計算(ボケずにくっきり映る点)

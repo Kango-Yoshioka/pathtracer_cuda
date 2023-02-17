@@ -27,9 +27,9 @@ public:
      filmSize(Eigen::Vector2d{filmHeight * aspectRatio, filmHeight}) {}
 
      [[nodiscard]]
-     __host__ __device__
-     Eigen::Vector2d pixelLocalPosition(const unsigned int &x, const unsigned int &y, const Eigen::Vector2d &rand) const {
-         return Eigen::Vector2d{(x + rand.x()) / resolution.x(), (y + rand.y()) / resolution.y()};
+     __device__
+     Eigen::Vector2d pixelLocalPosition(const unsigned int &x, const unsigned int &y, const double2 &rand) const {
+         return Eigen::Vector2d{(x + rand.x) / resolution.x(), (y + rand.y) / resolution.y()};
      }
 };
 

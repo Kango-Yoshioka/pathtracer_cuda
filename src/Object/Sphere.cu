@@ -31,9 +31,9 @@ bool Sphere::hit(const Ray &ray, RayHit &rayHit) const {
                                    (-b + sqrt(discriminant))
     };
 
-    if((distances < 1e-6).all()) return false;
+    if((distances < 1e-3).all()) return false;
 
-    rayHit.t = distances[0] > 1e-6 ? distances[0] : distances[1];
+    rayHit.t = distances[0] > 1e-3 ? distances[0] : distances[1];
     const auto p = ray.org + rayHit.t * ray.dir;
     rayHit.side = getHitSide(p, ray);
     rayHit.normal = getNormal(rayHit.side, p).normalized();
