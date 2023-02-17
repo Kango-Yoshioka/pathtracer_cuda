@@ -11,14 +11,14 @@
 
 class Camera : public Ray {
 public:
-    double focalLength, focusDist, fNumber, camToLensDist;
+    double focalLength, focusDist, fNumber, camToLensDist, sensitivity;
     Eigen::Vector3d right, up, lensPos;
     Film film;
 
-    Camera(const Eigen::Vector3d &org, const Eigen::Vector3d &dir, const int &resolutionHeight, double aspectRatio, double verticalFoV, double focalLength, double focusDist, double fNumber);
+    Camera(const Eigen::Vector3d &org, const Eigen::Vector3d &dir, const int &resolutionHeight, double aspectRatio, double verticalFoV, double focalLength, double focusDist, double fNumber, double sensitivity);
 
     __host__ __device__
-    void filmView(const unsigned int &p_x, const unsigned int &p_y, Ray &out_ray, const Eigen::Vector4d &rand) const;
+    void filmView(const unsigned int &p_x, const unsigned int &p_y, Ray &out_ray, double &weight, const Eigen::Vector4d &rand) const;
 };
 
 

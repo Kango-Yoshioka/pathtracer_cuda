@@ -4,8 +4,8 @@
 
 #include "Camera.cuh"
 
-Camera::Camera(const Eigen::Vector3d &org, const Eigen::Vector3d &dir, const int &resolutionHeight, double aspectRatio, double verticalFoV, double focalLength, double focusDist, double fNumber)
-    : Ray(org, dir), focalLength(focalLength), focusDist(focusDist), fNumber(fNumber) {
+Camera::Camera(const Eigen::Vector3d &org, const Eigen::Vector3d &dir, const int &resolutionHeight, double aspectRatio, double verticalFoV, double focalLength, double focusDist, double fNumber, double sensitivity)
+    : Ray(org, dir), focalLength(focalLength), focusDist(focusDist), fNumber(fNumber), sensitivity(sensitivity) {
     // 度数法からradianに変換
     const auto theta = verticalFoV * EIGEN_PI / 180.0;
     const double filmHeight = 2 * tan(theta / 2.0);
@@ -22,7 +22,7 @@ Camera::Camera(const Eigen::Vector3d &org, const Eigen::Vector3d &dir, const int
 }
 
 __host__ __device__
-void Camera::filmView(const unsigned int &p_x, const unsigned int &p_y, Ray &out_ray, const Eigen::Vector4d &rand) const {
+void Camera::filmView(const unsigned int &p_x, const unsigned int &p_y, Ray &out_ray, double &weight, const Eigen::Vector4d &rand) const {
     const auto pixelLocalPos = film.pixelLocalPosition(p_x, p_y, Eigen::Vector2d{rand.w(), rand.x()});
 
     // フィルムのピクセルのローカル座標をワールド座標に変換(カメラのorgを含む平面上に置く)
@@ -35,9 +35,14 @@ void Camera::filmView(const unsigned int &p_x, const unsigned int &p_y, Ray &out
     const double r = focalLength / (2.0 * fNumber) * rand.z();
     const Eigen::Vector3d randPosOnLens = lensPos + r * (right * cos(theta) + up * sin(theta));
 
-    // 周口店の計算(ボケずにくっきり映る点)
+    // 集光点の計算(ボケずにくっきり映る点)
     const Eigen::Vector3d focalPos = lensPos + pixelToLens * focusDist / pixelToLens.dot(dir);
 
     out_ray.org = randPosOnLens;
     out_ray.dir = (focalPos - randPosOnLens).normalized();
+
+    // weightの計算
+    const auto pdf = 2.0 * EIGEN_PI / r;
+    const auto cosine = fabs(out_ray.dir.dot(dir));
+    weight = sensitivity * cosine * cosine * cosine * cosine / (pdf * camToLensDist * camToLensDist);
 }

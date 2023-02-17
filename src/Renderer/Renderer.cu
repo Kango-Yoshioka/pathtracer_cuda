@@ -60,8 +60,9 @@ void generateImageWithCPU(const Scene &scene) {
             const unsigned int pixelIdx = y * image.getWidth() + x;
             Ray initRay;
             Color radiance = Color().setZero();
+            double weight;
             const Eigen::Vector4d rand{dist(engine), dist(engine), dist(engine), dist(engine)};
-            scene.camera.filmView(x, y, initRay, rand);
+            scene.camera.filmView(x, y, initRay, weight, rand);
             const int samplesPerPixel = 10000;
             for(int i = 0; i < samplesPerPixel; i++) {
                 Ray in_ray = initRay; PATH_TRACE_FLAG flag; Color in_radiance;
@@ -73,7 +74,7 @@ void generateImageWithCPU(const Scene &scene) {
                     in_ray = out_ray;
                     in_radiance = out_radiance;
                 } while(flag);
-                radiance += in_radiance;
+                radiance += weight * in_radiance;
             }
             pixels[pixelIdx] = radiance / static_cast<double>(samplesPerPixel);
         }
@@ -137,23 +138,21 @@ void writeToPixels(Color *out_pixels, Scene *scene, unsigned int samplesPerPixel
     const unsigned int pixelIdx = p.x() + (p.y() * scene->camera.film.resolution.x());
 
     curandState state = states[pixelIdx];
-    Ray initRay;
     Color radiance = Color(0.0, 0.0, 0.0);
 
-    const Eigen::Vector4d rand{generateRandom(state), generateRandom(state), generateRandom(state), generateRandom(state)};
-    scene->camera.filmView(p.x(), p.y(), initRay, rand);
     for(int i = 0; i < samplesPerPixel; i++) {
-        Ray in_ray = initRay;
-        Color in_radiance;
+        const Eigen::Vector4d rand{generateRandom(state), generateRandom(state), generateRandom(state), generateRandom(state)};
+        Ray in_ray; double weight;
+        Color in_radiance = Color(1, 1, 1);
         PATH_TRACE_FLAG pathTraceFlag;
-        in_radiance.setOnes();
+        scene->camera.filmView(p.x(), p.y(), in_ray, weight, rand);
         do {
             Ray out_ray; Color out_radiance;
             pathTraceGPU(in_radiance, out_radiance, scene, in_ray, out_ray, state, pathTraceFlag);
             in_ray = out_ray;
             in_radiance = out_radiance;
         } while (pathTraceFlag);
-        radiance += in_radiance;
+        radiance += weight * in_radiance;
     }
 
      out_pixels[pixelIdx] = radiance / static_cast<double>(samplesPerPixel);

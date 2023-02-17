@@ -27,7 +27,7 @@ using Eigen::array;
 using Eigen::SyclDevice;
 using Eigen::Tensor;
 using Eigen::TensorMap;
-std::ofstream out("Result.txt");
+std::ofstream out("Results.txt");
 
 std::chrono::time_point<std::chrono::system_clock> get_time(){
   std::chrono::time_point<std::chrono::system_clock> start, end;

@@ -21,7 +21,7 @@ void solve_with_guess(IterativeSolverBase<Solver>& solver, const MatrixBase<Rhs>
   }
   else
   {
-    // direct evaluation within x through Assignment<Result,SolveWithGuess>
+    // direct evaluation within x through Assignment<Results,SolveWithGuess>
     x = solver.derived().solveWithGuess(b.derived(),g);
   }
 }
