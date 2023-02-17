@@ -34,8 +34,6 @@ __global__ void writeToPixels(Color *out_pixels, Scene *scene, unsigned int samp
 
 __host__ Image generateImageWithGPU(const Scene &scene, const unsigned int &samplesPerPixel);
 
-__device__ __forceinline__ void pathTraceGPU(Color &radiance, const Scene *scene, Ray &ray, curandState &state, PATH_TRACE_FLAG &flag);
-
 __device__ __forceinline__ double generateRandom(curandState &state);
 
 #endif //CUDATEST_RENDERER_CUH

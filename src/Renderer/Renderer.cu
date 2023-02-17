@@ -62,11 +62,44 @@ void writeToPixels(Color *out_pixels, Scene *scene, unsigned int samplesPerPixel
         const double4 rand = make_double4(generateRandom(state), generateRandom(state), generateRandom(state), generateRandom(state));
         Ray ray; double weight;
         Color radiance = Color::Ones();
-        PATH_TRACE_FLAG pathTraceFlag;
         scene->camera.filmView(p.x(), p.y(), ray, weight, rand);
-        do {
-            pathTraceGPU(radiance, scene, ray, state, pathTraceFlag);
-        } while (pathTraceFlag);
+        while(true) {
+            RayHit hit;
+            if(!hitScene(scene, ray, hit)) {
+                radiance = scene->backgroundColor;
+                break;
+            }
+
+            const Body hitBody = scene->bodies[hit.idx];
+            const Material& hitBodyMaterial = hitBody.getMaterial();
+
+            if(hitBody.getEmission() > 0.0) {
+                /// ray hit a light source
+                radiance = hitBody.getEmission() * radiance.cwiseProduct(hitBody.getMaterial().getColor());
+                break;
+            }
+
+            const double xi = generateRandom(state);
+            const Eigen::Vector3d incidentPoint = ray.org + hit.t * ray.dir;
+
+            if(xi < hitBodyMaterial.getKd()) {
+                /// diffuse
+                double2 rands = make_double2(generateRandom(state), generateRandom(state));
+                diffuseSample(hit.normal, ray, incidentPoint, rands);
+                radiance = radiance.cwiseProduct(hitBodyMaterial.getColor());
+            } else if(xi < hitBodyMaterial.getKd() + hitBodyMaterial.getKs()) {
+                /// specular
+                specularSample(hit.normal, ray, incidentPoint);
+                radiance = radiance.cwiseProduct(hitBodyMaterial.getColor());
+            } else if(xi < hitBodyMaterial.getKd() + hitBodyMaterial.getKs() + hitBodyMaterial.getKt()) {
+                /// specular
+                refractSample(hit.normal, ray, incidentPoint);
+                radiance = radiance.cwiseProduct(hitBodyMaterial.getColor());
+            } else {
+                radiance.setZero();
+                break;
+            }
+        }
         accumulate_radiance += weight * radiance;
     }
 
@@ -178,54 +211,3 @@ void refractSample(const Eigen::Vector3d &normal, Ray &ray, const Eigen::Vector3
     else ray.dir = Eigen::Vector3d::Zero();
 }
 
-__device__ __forceinline__
-void pathTraceGPU(Color &radiance, const Scene *scene, Ray &ray, curandState &state, PATH_TRACE_FLAG &flag) {
-    RayHit hit;
-
-    if(!hitScene(scene, ray, hit)) {
-        radiance = scene->backgroundColor;
-        flag = PATH_TRACE_TERMINATE;
-        return;
-    }
-
-    const Body hitBody = scene->bodies[hit.idx];
-    const Material& hitBodyMaterial = hitBody.getMaterial();
-    const Eigen::Vector3d incidentPoint = ray.org + hit.t * ray.dir;
-
-    if(hitBody.getEmission() > 0.0) {
-        /// ray hit a light source
-        radiance = hitBody.getEmission() * radiance.cwiseProduct(hitBody.getMaterial().getColor());
-        flag = PATH_TRACE_TERMINATE;
-        return;
-    }
-
-    const double xi = generateRandom(state);
-
-    if(xi < hitBodyMaterial.getKd()) {
-        /// diffuse
-        double2 rands = make_double2(generateRandom(state), generateRandom(state));
-        diffuseSample(hit.normal, ray, incidentPoint, rands);
-        radiance = radiance.cwiseProduct(hitBodyMaterial.getColor());
-        flag = PATH_TRACE_CONTINUE;
-        return;
-    }
-
-    if(xi < hitBodyMaterial.getKd() + hitBodyMaterial.getKs()) {
-        /// specular
-        specularSample(hit.normal, ray, incidentPoint);
-        radiance = radiance.cwiseProduct(hitBodyMaterial.getColor());
-        flag = PATH_TRACE_CONTINUE;
-        return;
-    }
-
-    if(xi < hitBodyMaterial.getKd() + hitBodyMaterial.getKs() + hitBodyMaterial.getKt()) {
-        /// specular
-        refractSample(hit.normal, ray, incidentPoint);
-        radiance = radiance.cwiseProduct(hitBodyMaterial.getColor());
-        flag = PATH_TRACE_CONTINUE;
-        return;
-    }
-
-    radiance.setZero();
-    flag = PATH_TRACE_TERMINATE;
-}
