@@ -171,7 +171,7 @@ Image generateImageWithGPU(const Scene &scene, const unsigned int &samplesPerPix
     dim3 blocksPerGrid(h_image.getWidth(), h_image.getHeight());
 
     /// cuRand initialize ///
-    checkCudaErrors(cudaMalloc((void**)&d_state, sizeof(curandState) * h_image.getWidth() * h_image.getHeight() * threadsPerBlock.x));
+    checkCudaErrors(cudaMalloc((void**)&d_state, sizeof(curandState) * h_image.getWidth() * h_image.getHeight() * threadsPerPixel));
     // seed value is const
     const int seed = 0;
     curandInitInRenderer<<<blocksPerGrid, threadsPerBlock>>>(d_scene, d_state, seed);

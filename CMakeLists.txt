@@ -1,5 +1,5 @@
 set(CMAKE_VERBOSE_MAKEFILE 1)
-cmake_policy(SET CMP0076 NEW)
+
 
 cmake_minimum_required(VERSION 3.24)
 project(pathtracer_cuda LANGUAGES CUDA CXX)
