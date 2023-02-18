@@ -11,14 +11,13 @@
 /// Random number Generator Functions
 __global__ void curandInitInRenderer(const Scene *scene, curandState* state, unsigned long seed) {
     const Eigen::Vector2i p(
-            (blockIdx.x * blockDim.x) + threadIdx.x,
-            (blockIdx.y * blockDim.y) + threadIdx.y
+            blockIdx.x, blockIdx.y
     );
 
     if(p.x() >= scene->camera.film.resolution.x() || p.y() >= scene->camera.film.resolution.y()) return;
 
     const unsigned int pixelIdx = p.x() + (p.y() * scene->camera.film.resolution.x());
-    curand_init(seed, pixelIdx, 0, &state[pixelIdx]);
+    curand_init(seed, blockDim.x * pixelIdx + threadIdx.x, 0, &state[blockDim.x * pixelIdx + threadIdx.x]);
 }
 
 __device__ __forceinline__
@@ -47,18 +46,19 @@ bool hitScene(const Scene *scene, const Ray &ray, RayHit &hit) {
 }
 
 __global__
-void writeToPixels(Color *out_pixels, Scene *scene, unsigned int samplesPerPixel, curandState *states) {
+void writeToPixels(Color *out_pixelBuffer, Scene *scene, unsigned int samplesPerPixel, curandState *states) {
     const Eigen::Vector2i p(
-            (blockIdx.x * blockDim.x) + threadIdx.x,
-            (blockIdx.y * blockDim.y) + threadIdx.y
+            blockIdx.x, blockIdx.y
     );
+
     if(p.x() >= scene->camera.film.resolution.x() || p.y() >= scene->camera.film.resolution.y()) return;
+
     const unsigned int pixelIdx = p.x() + (p.y() * scene->camera.film.resolution.x());
 
-    curandState state = states[pixelIdx];
+    curandState state = states[blockDim.x * pixelIdx + threadIdx.x];
     Color accumulate_radiance = Color::Zero();
 
-    for(int i = 0; i < samplesPerPixel; i++) {
+    for(int i = 0; i < static_cast<int>(samplesPerPixel / blockDim.x); i++) {
         const double4 rand = make_double4(generateRandom(state), generateRandom(state), generateRandom(state), generateRandom(state));
         Ray ray; double weight;
         Color radiance = Color::Ones();
@@ -103,7 +103,26 @@ void writeToPixels(Color *out_pixels, Scene *scene, unsigned int samplesPerPixel
         accumulate_radiance += weight * radiance;
     }
 
-     out_pixels[pixelIdx] = accumulate_radiance / static_cast<double>(samplesPerPixel);
+    out_pixelBuffer[blockDim.x * pixelIdx + threadIdx.x] = accumulate_radiance / (static_cast<double>(samplesPerPixel) / blockDim.x);
+}
+
+__global__
+void reductionBuffer(const Color *in_pixelBuffer, Color *out_pixels, const int width, const int height, const int threadsPerPixel) {
+    const Eigen::Vector2i p(
+            blockIdx.x, blockIdx.y
+    );
+
+    if(p.x() >= width || p.y() >= height) return;
+
+    const unsigned int pixelIdx = p.x() + (p.y() * width);
+
+    Color sum = Color::Zero();
+
+    for(int i = 0; i < threadsPerPixel; i++) {
+        sum += in_pixelBuffer[threadsPerPixel * pixelIdx + i];
+    }
+
+    out_pixels[pixelIdx] = sum / static_cast<double>(threadsPerPixel);
 }
 
 __global__
@@ -115,6 +134,7 @@ __host__
 Image generateImageWithGPU(const Scene &scene, const unsigned int &samplesPerPixel) {
     Scene* d_scene;
     Body* d_body;
+    Color* d_pixelBuffer;
     Color* d_pixels;
     curandState* d_state;
 
@@ -132,7 +152,10 @@ Image generateImageWithGPU(const Scene &scene, const unsigned int &samplesPerPix
      * 構造体内に配列がある場合、cudaMemcpyをしても中身まではコピーされず、エラーとなるので、
      * 構造体内の配列は別途でGPUに送る必要あり。
      */
+    // 1threadあたりのサンプル数
+    const int threadsPerPixel = 128;
     checkCudaErrors(cudaMalloc((void**)&d_body, sizeof(Body) * scene.bodiesSize));
+    checkCudaErrors(cudaMalloc((void**)&d_pixelBuffer, sizeof(Color) * h_image.getWidth() * h_image.getHeight() * threadsPerPixel));
     checkCudaErrors(cudaMalloc((void**)&d_pixels, sizeof(Color) * h_image.getWidth() * h_image.getHeight()));
 
     checkCudaErrors(cudaMemcpy(d_scene, &scene, sizeof(Scene), cudaMemcpyHostToDevice));
@@ -143,24 +166,25 @@ Image generateImageWithGPU(const Scene &scene, const unsigned int &samplesPerPix
      */
     sceneInitialize<<<1, 1>>>(d_scene, d_body);
 
-    /// 1 threads per pixel
-    dim3 threadsPerBlock(16);
-    dim3 blocksPerGrid(ceil(static_cast<double>(h_image.getWidth()) / threadsPerBlock.x),
-                       ceil(static_cast<double>(h_image.getHeight()) / threadsPerBlock.y));
+    /// 1 blocks per pixel
+    dim3 threadsPerBlock(threadsPerPixel);
+    dim3 blocksPerGrid(h_image.getWidth(), h_image.getHeight());
 
     /// cuRand initialize ///
-    checkCudaErrors(cudaMalloc((void**)&d_state, sizeof(curandState) * h_image.getWidth() * h_image.getHeight()));
+    checkCudaErrors(cudaMalloc((void**)&d_state, sizeof(curandState) * h_image.getWidth() * h_image.getHeight() * threadsPerBlock.x));
     // seed value is const
     const int seed = 0;
     curandInitInRenderer<<<blocksPerGrid, threadsPerBlock>>>(d_scene, d_state, seed);
 
-    writeToPixels<<<blocksPerGrid, threadsPerBlock>>>(d_pixels, d_scene, samplesPerPixel, d_state);
+    writeToPixels<<<blocksPerGrid, threadsPerBlock>>>(d_pixelBuffer, d_scene, samplesPerPixel, d_state);
+
+    reductionBuffer<<<blocksPerGrid, 1>>>(d_pixelBuffer, d_pixels, h_image.getWidth(), h_image.getHeight(), threadsPerPixel);
 
     checkCudaErrors(cudaMemcpy(h_image.pixels, d_pixels, sizeof(Color) * h_image.getWidth() * h_image.getHeight(), cudaMemcpyDeviceToHost));
 
     checkCudaErrors(cudaFree(d_scene));
     checkCudaErrors(cudaFree(d_body));
-    checkCudaErrors(cudaFree(d_pixels));
+    checkCudaErrors(cudaFree(d_pixelBuffer));
 
     return h_image;
 }

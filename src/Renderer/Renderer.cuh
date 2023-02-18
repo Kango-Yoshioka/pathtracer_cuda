@@ -30,7 +30,7 @@ __device__ __forceinline__ void refractSample(const Eigen::Vector3d &normal, Ray
 
 __global__ void sceneInitialize(Scene *d_scene, Body *d_body);
 
-__global__ void writeToPixels(Color *out_pixels, Scene *scene, unsigned int samplesPerPixel, curandState *states);
+__global__ void writeToPixels(Color *out_pixelBuffer, Scene *scene, unsigned int samplesPerPixel, curandState *states);
 
 __host__ Image generateImageWithGPU(const Scene &scene, const unsigned int &samplesPerPixel);
 

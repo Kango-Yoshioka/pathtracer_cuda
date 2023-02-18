@@ -78,7 +78,7 @@ int main() {
     LARGE_INTEGER start, end;
     QueryPerformanceCounter(&start);
 
-    auto image = generateImageWithGPU(scene, static_cast<int>(pow(2, 10)));
+    auto image = generateImageWithGPU(scene, static_cast<int>(pow(2, 12)));
 
     QueryPerformanceCounter(&end);
 
