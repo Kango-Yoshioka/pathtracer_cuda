@@ -18,7 +18,7 @@ SIDE Sphere::getHitSide(const Eigen::Vector3d &p, const Ray &ray) const {
 }
 
 __device__ __host__
-bool Sphere::hit(const Ray &ray, RayHit &rayHit) const {
+bool Sphere::hit(const Ray &ray, RayHit &hit) const {
     const double b = (ray.org - center).dot(ray.dir);
     const double c = (ray.org - center).squaredNorm() - radius * radius;
     const double discriminant = b * b - c;
@@ -31,9 +31,9 @@ bool Sphere::hit(const Ray &ray, RayHit &rayHit) const {
 
     if((distances < 1e-6).all()) return false;
 
-    rayHit.t = distances[0] > 1e-6 ? distances[0] : distances[1];
-    const auto p = ray.org + rayHit.t * ray.dir;
-    rayHit.side = getHitSide(p, ray);
-    rayHit.normal = getNormal(rayHit.side, p).normalized();
+    hit.t = distances[0] > 1e-6 ? distances[0] : distances[1];
+    const auto p = ray.org + hit.t * ray.dir;
+    hit.side = getHitSide(p, ray);
+    hit.normal = getNormal(hit.side, p).normalized();
     return true;
 }

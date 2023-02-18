@@ -7,7 +7,7 @@
 
 
 #include "../Image/Image.cuh"
-#include "../Object/Sphere.cuh"
+#include "../Object/Geometry/Sphere.cuh"
 #include "Camera/Camera.cuh"
 #include "Scene.cuh"
 #include <curand_kernel.h>

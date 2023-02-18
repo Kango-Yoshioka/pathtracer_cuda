@@ -6,7 +6,7 @@
 #define LINKTEST_BODY_CUH
 
 
-#include "../Sphere.cuh"
+#include "../Geometry/Sphere.cuh"
 #include "../Material/Material.cuh"
 #include "Eigen/Dense"
 

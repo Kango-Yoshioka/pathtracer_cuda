@@ -144,7 +144,7 @@ Image generateImageWithGPU(const Scene &scene, const unsigned int &samplesPerPix
     sceneInitialize<<<1, 1>>>(d_scene, d_body);
 
     /// 1 threads per pixel
-    dim3 threadsPerBlock(16, 16);
+    dim3 threadsPerBlock(16);
     dim3 blocksPerGrid(ceil(static_cast<double>(h_image.getWidth()) / threadsPerBlock.x),
                        ceil(static_cast<double>(h_image.getHeight()) / threadsPerBlock.y));
 

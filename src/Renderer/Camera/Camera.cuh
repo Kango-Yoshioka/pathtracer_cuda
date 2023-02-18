@@ -11,7 +11,7 @@
 
 class Camera : public Ray {
 public:
-    double focalLength, focusDist, fNumber, camToLensDist, sensitivity;
+    double focalLength, focusDist, fNumber, camToLensDist, sensitivity, lensRadius;
     Eigen::Vector3d right, up, lensPos;
     Film film;
 

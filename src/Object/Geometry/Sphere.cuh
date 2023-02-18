@@ -5,8 +5,8 @@
 #ifndef CUDATEST_SPHERE_CUH
 #define CUDATEST_SPHERE_CUH
 
-#include "../Renderer/Ray.cuh"
-#include "Eigen/Dense"
+#include "../../Renderer/Ray.cuh"
+#include "../../../third_party/eigen-3.4.0/Eigen/Dense"
 
 class Sphere {
 public:
@@ -23,7 +23,7 @@ public:
     Eigen::Vector3d getNormal(const SIDE &side, const Eigen::Vector3d &p) const;
 
     __device__ __host__
-    bool hit(const Ray &ray, RayHit &rayHit) const;
+    bool hit(const Ray &ray, RayHit &hit) const;
 };
 
 

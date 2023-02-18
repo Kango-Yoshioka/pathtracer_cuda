@@ -14,7 +14,7 @@ add_subdirectory(Camera)
 
 target_link_libraries(renderer PUBLIC camera)
 target_link_libraries(renderer PUBLIC image)
-target_link_libraries(renderer PUBLIC object)
+target_link_libraries(renderer PUBLIC body geometry material)
 
 target_include_directories(renderer PRIVATE ../../third_party/eigen-3.4.0)
 target_include_directories(renderer PRIVATE ../Object)

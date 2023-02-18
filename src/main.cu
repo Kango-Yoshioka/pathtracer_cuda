@@ -1,5 +1,5 @@
 #include "Object/Body/Body.cuh"
-#include "Object/Sphere.cuh"
+#include "Object/Geometry/Sphere.cuh"
 #include "Renderer/Camera/Camera.cuh"
 #include "Renderer/Renderer.cuh"
 #include "Renderer/Scene.cuh"
@@ -37,7 +37,7 @@ int main() {
     Sphere sphere3(2.0, Eigen::Vector3d{7, -8, -5});
 
     Body world(0.0, Material(M_DIFFUSE, Color::Zero(), 0.0), worldSphere);
-    const double room_kd = 0.8;
+    const double room_kd = 0.6;
     Body room[6] = {
             Body(0.0, Material(M_DIFFUSE, Color(1.0, 0.01, 0.01), room_kd), roomSpheres[0]),
             Body(0.0, Material(M_DIFFUSE, Color(0.01, 1.0, 0.01), room_kd), roomSpheres[1]),
@@ -63,7 +63,7 @@ int main() {
     const Camera camera(
             camOrg,
             sphere.center - camOrg,
-            720, 21.0 / 9.0, 40, 0.8, (sphere.center - camOrg).norm(), 1.0, 80
+            256, 1.0, 45, 0.5, (sphere.center - camOrg).norm(), 0.5, 10
     );
 
     Scene scene(bodies.size(), camera, bodies.data(), Color::Zero());
@@ -78,7 +78,7 @@ int main() {
     LARGE_INTEGER start, end;
     QueryPerformanceCounter(&start);
 
-    auto image = generateImageWithGPU(scene, static_cast<int>(pow(2, 18)));
+    auto image = generateImageWithGPU(scene, static_cast<int>(pow(2, 10)));
 
     QueryPerformanceCounter(&end);
 

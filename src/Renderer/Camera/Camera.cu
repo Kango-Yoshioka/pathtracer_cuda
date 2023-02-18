@@ -13,6 +13,11 @@ Camera::Camera(const Eigen::Vector3d &org, const Eigen::Vector3d &dir, const int
 
     // カメラとレンズの距離
     camToLensDist = focusDist * focalLength / (focusDist - focalLength);
+
+    // レンズの半径
+    lensRadius = focalLength / (2.0 * fNumber);
+    if(lensRadius < 1e-6) lensRadius = 0;
+
     // レンズの場所を決定
     lensPos = org + dir.normalized() * camToLensDist;
 
@@ -32,7 +37,7 @@ void Camera::filmView(const unsigned int &p_x, const unsigned int &p_y, Ray &out
 
     // レンズ上の位置サンプリング
     const double theta = 2.0 * EIGEN_PI * rand.y;
-    const double r = focalLength / (2.0 * fNumber) * rand.z;
+    const double r = lensRadius * rand.z;
     const Eigen::Vector3d randPosOnLens = lensPos + r * (right * cos(theta) + up * sin(theta));
 
     // 集光点の計算(ボケずにくっきり映る点)
@@ -42,7 +47,7 @@ void Camera::filmView(const unsigned int &p_x, const unsigned int &p_y, Ray &out
     out_ray.dir = (focalPos - randPosOnLens).normalized();
 
     // weightの計算
-    const auto pdf = 2.0 * EIGEN_PI / r;
+    const auto pdf = (lensRadius == 0) ? 1.0 : 2.0 * EIGEN_PI / r;
     const auto cosine = fabs(out_ray.dir.dot(dir));
     weight = sensitivity * cosine * cosine * cosine * cosine / (pdf * camToLensDist * camToLensDist);
 }

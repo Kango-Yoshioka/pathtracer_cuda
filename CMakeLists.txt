@@ -10,10 +10,12 @@ set(CMAKE_CXX_STANDARD 23)
 add_executable(${PROJECT_NAME} src/main.cu)
 
 add_subdirectory(src/Image)
-add_subdirectory(src/Object)
+add_subdirectory(src/Object/Body)
+add_subdirectory(src/Object/Geometry)
+add_subdirectory(src/Object/Material)
 add_subdirectory(src/Renderer)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC image object renderer curand)
+target_link_libraries(${PROJECT_NAME} PUBLIC image body geometry material renderer curand)
 target_include_directories(${PROJECT_NAME} PRIVATE third_party/eigen-3.4.0)
 
 # CUDA
