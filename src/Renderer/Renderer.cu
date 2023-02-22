@@ -5,8 +5,8 @@
 #include "Renderer.cuh"
 #include "Scene.cuh"
 #include "helper_cuda.h"
+#include "thrust/device_vector.h"
 #include <iostream>
-#include <windows.h>
 
 /// Random number Generator Functions
 __global__ void curandInitInRenderer(const Scene *scene, curandState* state, unsigned long seed) {
@@ -57,8 +57,9 @@ void writeToPixels(Color *out_pixelBuffer, Scene *scene, unsigned int samplesPer
 
     curandState state = states[blockDim.x * pixelIdx + threadIdx.x];
     Color accumulate_radiance = Color::Zero();
+    const int samplesPerThreads = samplesPerPixel / blockDim.x;
 
-    for(int i = 0; i < static_cast<int>(samplesPerPixel / blockDim.x); i++) {
+    for(int i = 0; i < samplesPerThreads; i++) {
         const double4 rand = make_double4(generateRandom(state), generateRandom(state), generateRandom(state), generateRandom(state));
         Ray ray; double weight;
         Color radiance = Color::Ones();
@@ -103,26 +104,32 @@ void writeToPixels(Color *out_pixelBuffer, Scene *scene, unsigned int samplesPer
         accumulate_radiance += weight * radiance;
     }
 
-    out_pixelBuffer[blockDim.x * pixelIdx + threadIdx.x] = accumulate_radiance / (static_cast<double>(samplesPerPixel) / blockDim.x);
+    out_pixelBuffer[blockDim.x * pixelIdx + threadIdx.x] = accumulate_radiance / (static_cast<double>(samplesPerPixel) / blockDim.x) / blockDim.x;
 }
 
-__global__
-void reductionBuffer(const Color *in_pixelBuffer, Color *out_pixels, const int width, const int height, const int threadsPerPixel) {
-    const Eigen::Vector2i p(
-            blockIdx.x, blockIdx.y
-    );
+void genKeys(const int &N, const int &group_size, thrust::device_vector<int> &d_key) {
+    thrust::counting_iterator<int> iter(0);
 
-    if(p.x() >= width || p.y() >= height) return;
+    auto keys = thrust::make_transform_iterator(iter, [group_size] __host__ __device__(int i) {
+        return i / group_size;
+    });
 
-    const unsigned int pixelIdx = p.x() + (p.y() * width);
+    d_key = thrust::device_vector<int>(N);
+    thrust::copy(keys, keys + N, d_key.begin());
+}
 
-    Color sum = Color::Zero();
+void reductionBuffer(thrust::device_vector<Color> &in_pixelBuffer, Color *out_pixels, const int width, const int height, const int threadsPerPixel) {
+    const int N = width * height * threadsPerPixel;
+    thrust::device_vector<int> in_key, out_key;
+    thrust::device_vector<Color> d_pixels(width * height);
+    genKeys(N, threadsPerPixel, in_key);
+    out_key = thrust::device_vector<int>(width * height);
 
-    for(int i = 0; i < threadsPerPixel; i++) {
-        sum += in_pixelBuffer[threadsPerPixel * pixelIdx + i];
-    }
+    thrust::reduce_by_key(
+            in_key.begin(), in_key.end(), in_pixelBuffer.begin(),
+            out_key.begin(), d_pixels.begin(), thrust::equal_to<int>(), thrust::plus<Color>());
 
-    out_pixels[pixelIdx] = sum / static_cast<double>(threadsPerPixel);
+    checkCudaErrors(cudaMemcpy(out_pixels, thrust::raw_pointer_cast(d_pixels.data()), sizeof(Color) * width * height, cudaMemcpyDeviceToHost));
 }
 
 __global__
@@ -134,8 +141,7 @@ __host__
 Image generateImageWithGPU(const Scene &scene, const unsigned int &samplesPerPixel) {
     Scene* d_scene;
     Body* d_body;
-    Color* d_pixelBuffer;
-    Color* d_pixels;
+    thrust::device_vector<Color> d_pixelBuffer;
     curandState* d_state;
 
     /// information of camera ///
@@ -153,10 +159,9 @@ Image generateImageWithGPU(const Scene &scene, const unsigned int &samplesPerPix
      * 構造体内の配列は別途でGPUに送る必要あり。
      */
     // 1threadあたりのサンプル数
-    const int threadsPerPixel = 128;
+    const int threadsPerPixel = 32;
     checkCudaErrors(cudaMalloc((void**)&d_body, sizeof(Body) * scene.bodiesSize));
-    checkCudaErrors(cudaMalloc((void**)&d_pixelBuffer, sizeof(Color) * h_image.getWidth() * h_image.getHeight() * threadsPerPixel));
-    checkCudaErrors(cudaMalloc((void**)&d_pixels, sizeof(Color) * h_image.getWidth() * h_image.getHeight()));
+    d_pixelBuffer = thrust::device_vector<Color>(h_image.getWidth() * h_image.getHeight() * threadsPerPixel);
 
     checkCudaErrors(cudaMemcpy(d_scene, &scene, sizeof(Scene), cudaMemcpyHostToDevice));
     checkCudaErrors(cudaMemcpy(d_body, scene.bodies, sizeof(Body) * scene.bodiesSize, cudaMemcpyHostToDevice));
@@ -176,15 +181,12 @@ Image generateImageWithGPU(const Scene &scene, const unsigned int &samplesPerPix
     const int seed = 0;
     curandInitInRenderer<<<blocksPerGrid, threadsPerBlock>>>(d_scene, d_state, seed);
 
-    writeToPixels<<<blocksPerGrid, threadsPerBlock>>>(d_pixelBuffer, d_scene, samplesPerPixel, d_state);
+    writeToPixels<<<blocksPerGrid, threadsPerBlock>>>(thrust::raw_pointer_cast(d_pixelBuffer.data()), d_scene, samplesPerPixel, d_state);
 
-    reductionBuffer<<<blocksPerGrid, 1>>>(d_pixelBuffer, d_pixels, h_image.getWidth(), h_image.getHeight(), threadsPerPixel);
-
-    checkCudaErrors(cudaMemcpy(h_image.pixels, d_pixels, sizeof(Color) * h_image.getWidth() * h_image.getHeight(), cudaMemcpyDeviceToHost));
+    reductionBuffer(d_pixelBuffer, h_image.pixels, h_image.getWidth(), h_image.getHeight(), threadsPerPixel);
 
     checkCudaErrors(cudaFree(d_scene));
     checkCudaErrors(cudaFree(d_body));
-    checkCudaErrors(cudaFree(d_pixelBuffer));
 
     return h_image;
 }

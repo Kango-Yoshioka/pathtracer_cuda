@@ -9,6 +9,7 @@ project(renderer_lib
 
 
 add_library(renderer STATIC Renderer.cu Renderer.cuh)
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --extended-lambda")
 
 add_subdirectory(Camera)
 
