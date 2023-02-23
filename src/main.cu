@@ -63,7 +63,7 @@ int main() {
     const Camera camera(
             camOrg,
             sphere.center - camOrg,
-            256, 1.0, 40, 0.6, (sphere.center - camOrg).norm(), 1.0, 50
+            667, 750.0 / 1334.0, 90, 0.6, (sphere.center - camOrg).norm(), 0.8, 12
     );
 
     Scene scene(bodies.size(), camera, bodies.data(), Color::Zero());
@@ -78,7 +78,7 @@ int main() {
     LARGE_INTEGER start, end;
     QueryPerformanceCounter(&start);
 
-    auto image = generateImageWithGPU(scene, static_cast<int>(pow(2, 15)));
+    auto image = generateImageWithGPU(scene, static_cast<int>(pow(2, 10)));
 
     QueryPerformanceCounter(&end);
 

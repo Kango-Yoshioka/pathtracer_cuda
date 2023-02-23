@@ -104,7 +104,7 @@ void writeToPixels(Color *out_pixelBuffer, Scene *scene, unsigned int samplesPer
         accumulate_radiance += weight * radiance;
     }
 
-    out_pixelBuffer[blockDim.x * pixelIdx + threadIdx.x] = accumulate_radiance / (static_cast<double>(samplesPerPixel) / blockDim.x) / blockDim.x;
+    out_pixelBuffer[blockDim.x * pixelIdx + threadIdx.x] = accumulate_radiance / static_cast<double>(samplesPerPixel);
 }
 
 void genKeys(const int &N, const int &group_size, thrust::device_vector<int> &d_key) {
@@ -152,14 +152,15 @@ Image generateImageWithGPU(const Scene &scene, const unsigned int &samplesPerPix
     /// Scene initialize ///
     Image h_image(scene.camera.film.resolution.x(), scene.camera.film.resolution.y());
     std::cout << "Pixel size:\t" << h_image.getWidth() * h_image.getHeight() << std::endl;
+    std::cout << "Number of samples:\t" << samplesPerPixel << std::endl;
 
     checkCudaErrors(cudaMalloc((void**)&d_scene, sizeof(Scene)));
     /**
      * 構造体内に配列がある場合、cudaMemcpyをしても中身まではコピーされず、エラーとなるので、
      * 構造体内の配列は別途でGPUに送る必要あり。
      */
-    // 1threadあたりのサンプル数
-    const int threadsPerPixel = 32;
+    // 1pixelあたりのthread数
+    const int threadsPerPixel = 512;
     checkCudaErrors(cudaMalloc((void**)&d_body, sizeof(Body) * scene.bodiesSize));
     d_pixelBuffer = thrust::device_vector<Color>(h_image.getWidth() * h_image.getHeight() * threadsPerPixel);
 
