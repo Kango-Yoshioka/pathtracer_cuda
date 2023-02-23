@@ -10,13 +10,8 @@
 #include "../Object/Geometry/Sphere.cuh"
 #include "Camera/Camera.cuh"
 #include "Scene.cuh"
+#include "thrust/device_vector.h"
 #include <curand_kernel.h>
-#include <random>
-
-enum PATH_TRACE_FLAG {
-    PATH_TRACE_CONTINUE = true,
-    PATH_TRACE_TERMINATE = false
-};
 
 __device__ __forceinline__ bool hitScene(const Scene *scene, const Ray &ray, RayHit &hit);
 

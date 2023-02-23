@@ -3,9 +3,7 @@
 //
 
 #include "Renderer.cuh"
-#include "Scene.cuh"
 #include "helper_cuda.h"
-#include "thrust/device_vector.h"
 #include <iostream>
 
 /// Random number Generator Functions
