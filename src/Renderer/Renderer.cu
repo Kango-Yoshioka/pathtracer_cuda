@@ -158,7 +158,7 @@ Image generateImageWithGPU(const Scene &scene, const unsigned int &samplesPerPix
      * 構造体内の配列は別途でGPUに送る必要あり。
      */
     // 1pixelあたりのthread数
-    const int threadsPerPixel = 512;
+    const int threadsPerPixel = 128;
     checkCudaErrors(cudaMalloc((void**)&d_body, sizeof(Body) * scene.bodiesSize));
     d_pixelBuffer = thrust::device_vector<Color>(h_image.getWidth() * h_image.getHeight() * threadsPerPixel);
 
