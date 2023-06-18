@@ -29,10 +29,10 @@ void func1() {
             Sphere(room_r, Eigen::Vector3d{room_r - 15, 0, 0}),
             Sphere(room_r, Eigen::Vector3d{-(room_r - 15), 0, 0}),
             Sphere(room_r, Eigen::Vector3d{0, 0, room_r - 30}),
-            Sphere(room_r, Eigen::Vector3d{0, room_r - 20, 0}),
-            Sphere(room_r, Eigen::Vector3d{0, -(room_r - 20), 0})
+            Sphere(room_r, Eigen::Vector3d{0, room_r - 10, 0}),
+            Sphere(room_r, Eigen::Vector3d{0, -(room_r - 10), 0})
     };
-    Sphere lightSphere(1.0, Eigen::Vector3d(0, 14, 7));
+    Sphere lightSphere(1.0, Eigen::Vector3d(0, 8.9, 7));
 
     Sphere sphere(3.0, Eigen::Vector3d{0, -7, -6});
     Sphere sphere2(2.0, Eigen::Vector3d{-8, -8, -4});
@@ -47,7 +47,7 @@ void func1() {
             Body(0.0, Material(M_DIFFUSE, offWhite, room_kd), roomSpheres[3]),
             Body(0.0, Material(M_DIFFUSE, offWhite, room_kd), roomSpheres[4]),
     };
-    Body light(100.0, Material(M_ZERO, Color(1, 1, 1)), lightSphere);
+    Body light(1000.0, Material(M_ZERO, Color(1, 1, 1)), lightSphere);
     Body body(0.0, Material(Color(0.3, 0.92, 0.95), 1.0, 0.0, 0.0), sphere);
     Body body2(0.0, Material(Color(0.6, 0.7, 0.5), 0.01, 0.9, 0.0), sphere2);
     Body body3(0.0, Material(codeToColor("#5900ff"), 0.01, 0.1, 0.8), sphere3);
@@ -60,11 +60,11 @@ void func1() {
         bodies.push_back(i);
     }
 
-    const Eigen::Vector3d camOrg{0, 0, 70.0};
+    const Eigen::Vector3d camOrg{0, -5, 15.0};
     const Camera camera(
             camOrg,
             body.getSphere().center - camOrg,
-            1920, 9.0 / 16.0, 40, 1.0, (body.getSphere().center - camOrg).norm(), 2.0, 20
+            1080, 16.0 / 9.0, 40, 1.0, (body.getSphere().center - camOrg).norm(), 1.5, 20
     );
 
     Scene scene(bodies.size(), camera, bodies.data(), Color::Zero());
@@ -79,7 +79,7 @@ void func1() {
     LARGE_INTEGER start, end;
     QueryPerformanceCounter(&start);
 
-    auto image = generateImageWithGPU(scene, 1024).apply_reinhard_extended_tone_mapping().apply_gamma_correction();
+    auto image = generateImageWithGPU(scene, 1024).apply_reinhard_extended_tone_mapping().apply_bilateral_filter(4, 150, 10).apply_gamma_correction();
 
     QueryPerformanceCounter(&end);
 
