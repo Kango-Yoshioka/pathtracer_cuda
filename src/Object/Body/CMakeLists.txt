@@ -11,7 +11,8 @@ add_library(body STATIC Body.cu)
 
 target_link_libraries(body PUBLIC material geometry)
 
-target_include_directories(body PUBLIC ../../../third_party/eigen-3.4.0)
+find_package(Eigen3 REQUIRED)
+target_link_libraries(body PUBLIC Eigen3::Eigen)
 
 set_target_properties(body
         PROPERTIES

@@ -7,18 +7,17 @@ project(renderer_lib
         DESCRIPTION "Object library"
         LANGUAGES CUDA)
 
-
-add_library(renderer STATIC Renderer.cu Renderer.cuh)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --extended-lambda")
+add_library(renderer STATIC Renderer.cu)
 
 add_subdirectory(Camera)
 
 target_link_libraries(renderer PUBLIC camera)
 target_link_libraries(renderer PUBLIC image)
-target_link_libraries(renderer PUBLIC body geometry material)
+target_link_libraries(renderer PUBLIC body)
 
-target_include_directories(renderer PRIVATE ../../third_party/eigen-3.4.0)
-target_include_directories(renderer PRIVATE ../Object)
+find_package(Eigen3 CONFIG REQUIRED)
+target_link_libraries(renderer PUBLIC Eigen3::Eigen)
 
 # cuda-samples
 #---------------------------------------

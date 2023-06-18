@@ -8,7 +8,7 @@
 
 #include <utility>
 
-#include "../Image/Image.cuh"
+#include "../Image/Image.h"
 #include "../Object/Body/Body.cuh"
 #include "Camera/Camera.cuh"
 

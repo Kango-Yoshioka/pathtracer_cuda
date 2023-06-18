@@ -73,7 +73,7 @@ void writeToPixels(Color *out_pixelBuffer, Scene *scene, unsigned int samplesPer
             const Material& hitBodyMaterial = hitBody.getMaterial();
 
             if(hitBody.getEmission() > 0.0) {
-                /// ray hit a light source
+                /// ray hit_func a light source
                 radiance = hitBody.getEmission() * radiance.cwiseProduct(hitBody.getMaterial().getColor());
                 break;
             }

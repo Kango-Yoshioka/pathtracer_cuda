@@ -10,7 +10,8 @@ project(geometry_lib
 
 add_library(geometry STATIC sphere.cu)
 
-target_include_directories(geometry PUBLIC ../../Renderer ../../../third_party/eigen-3.4.0)
+find_package(Eigen3 CONFIG REQUIRED)
+target_link_libraries(geometry PUBLIC Eigen3::Eigen)
 
 set_target_properties(geometry
         PROPERTIES

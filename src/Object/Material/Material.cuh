@@ -5,7 +5,8 @@
 #ifndef LINKTEST_MATERIAL_CUH
 #define LINKTEST_MATERIAL_CUH
 
-#include "../../Image/Image.cuh"
+
+#include "../../Image/Image.h"
 
 enum MaterialPreset {
     M_DIFFUSE,

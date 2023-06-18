@@ -9,7 +9,11 @@ project(camera_lib
 
 add_library(camera STATIC Camera.cu)
 
-target_include_directories(camera PUBLIC ../../../third_party/eigen-3.4.0)
+find_package(Eigen3 CONFIG REQUIRED)
+target_link_libraries(camera PUBLIC Eigen3::Eigen)
+
+find_package(OpenCV CONFIG REQUIRED)
+include_directories(${OpenCV_INCLUDE_DIRS})
 
 set_target_properties(camera
         PROPERTIES

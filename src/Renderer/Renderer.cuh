@@ -6,7 +6,7 @@
 #define CUDATEST_RENDERER_CUH
 
 
-#include "../Image/Image.cuh"
+#include "../Image/Image.h"
 #include "../Object/Geometry/Sphere.cuh"
 #include "Camera/Camera.cuh"
 #include "Scene.cuh"

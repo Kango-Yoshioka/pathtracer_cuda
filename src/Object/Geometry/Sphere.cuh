@@ -6,7 +6,7 @@
 #define CUDATEST_SPHERE_CUH
 
 #include "../../Renderer/Ray.cuh"
-#include "../../../third_party/eigen-3.4.0/Eigen/Dense"
+#include <Eigen/Dense>
 
 class Sphere {
 public:

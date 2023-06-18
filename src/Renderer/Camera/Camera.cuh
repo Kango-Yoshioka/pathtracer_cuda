@@ -6,8 +6,8 @@
 #define CUDATEST_CAMERA_CUH
 
 
-#include "../Film.cuh"
 #include "../Ray.cuh"
+#include "Film.cuh"
 
 class Camera : public Ray {
 public:

@@ -8,7 +8,7 @@ Camera::Camera(const Eigen::Vector3d &org, const Eigen::Vector3d &dir, const int
     : Ray(org, dir), focalLength(focalLength), focusDist(focusDist), fNumber(fNumber), sensitivity(sensitivity) {
     // 度数法からradianに変換
     const auto theta = verticalFoV * EIGEN_PI / 180.0;
-    const double filmHeight = 2 * tan(theta / 2.0);
+    const double filmHeight = 2 * tan(theta / 2.0) * focalLength;
     film = Film(resolutionHeight, aspectRatio, filmHeight);
 
     // カメラとレンズの距離

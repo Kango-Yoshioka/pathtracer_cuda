@@ -6,7 +6,7 @@
 #define CUDATEST_RAY_CUH
 
 
-#include "Eigen/Dense"
+#include <Eigen/Dense>
 
 
 enum SIDE {
@@ -21,8 +21,8 @@ struct Ray {
     Ray() = default;
 
     __host__ __device__
-    Ray(Eigen::Vector3d org, Eigen::Vector3d dir) :
-            org(std::move(org)), dir(std::move(dir.normalized())) {}
+    Ray(Eigen::Vector3d org, const Eigen::Vector3d& dir) :
+            org(std::move(org)), dir(dir.normalized()) {}
 };
 
 struct RayHit {
