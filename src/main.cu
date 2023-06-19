@@ -79,7 +79,7 @@ void func1() {
     LARGE_INTEGER start, end;
     QueryPerformanceCounter(&start);
 
-    auto image = generateImageWithGPU(scene, 1024).apply_reinhard_extended_tone_mapping().apply_bilateral_filter(4, 150, 10).apply_gamma_correction();
+    auto image = generateImageWithGPU(scene, 1e4).apply_reinhard_extended_tone_mapping().apply_bilateral_filter(4, 150, 10).apply_gamma_correction();
 
     QueryPerformanceCounter(&end);
 
