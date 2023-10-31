@@ -5,7 +5,6 @@ CUDAを用いたパストレーサーです
 # DEMO
 
 ![sample.png](sample.png)
-![sample2.png](sample2.png)
 
 # Features
 
